@@ -1092,6 +1092,9 @@ export default function (playerInstance, options) {
 
     // ADS
     playerInstance.switchToMainVideo = () => {
+        if (playerInstance.domRef.player.muted) {
+            playerInstance.setVolume(0); // Allows for autoplay after ads
+        }
         playerInstance.debugMessage('starting main video');
 
         playerInstance.domRef.player.src = playerInstance.originalSrc;

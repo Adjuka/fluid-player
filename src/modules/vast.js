@@ -650,6 +650,11 @@ export default function (playerInstance, options) {
                 return;
             }
 
+            if (xmlHttpReq.readyState === 4 && xmlHttpReq.status === 204) {
+                callBack(false);
+                return;
+            }
+
             if (xmlHttpReq.readyState === 4 && xmlHttpReq.status === 0) {
                 callBack(false); //Most likely that Ad Blocker exists
                 return;
