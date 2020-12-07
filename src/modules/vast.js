@@ -582,6 +582,7 @@ export default function (playerInstance, options) {
                 }
 
                 playerInstance.adList[adListId].adType = tmpOptions.adType ? tmpOptions.adType : 'unknown';
+                playerInstance.adList[adListId].status = 'unknown';
                 playerInstance.adList[adListId].vastLoaded = true;
                 playerInstance.adPool[adListId] = Object.assign({}, tmpOptions);
 

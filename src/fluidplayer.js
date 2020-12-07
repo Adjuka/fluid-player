@@ -118,6 +118,7 @@ const fluidPlayerClass = function () {
         self.preRollAdPodsLength = 0;
         self.preRollVastResolved = 0;
         self.temporaryAdPods = [];
+        self.currentAdListId = null;
         self.availableRolls = ['preRoll', 'midRoll', 'postRoll', 'onPauseRoll'];
         self.supportedNonLinearAd = ['300x250', '468x60', '728x90'];
         self.autoplayAfterAd = true;
@@ -247,7 +248,7 @@ const fluidPlayerClass = function () {
                     }),
                     vastVideoSkippedCallback: (function () {
                     }),
-                    vastVideoEndedCallback: (function () {
+                    vastVideoEndedCallback: (function (ad) {
                     })
                 }
             },

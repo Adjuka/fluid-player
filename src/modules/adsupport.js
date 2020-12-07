@@ -362,6 +362,7 @@ export default function (playerInstance, options) {
             case 'midpoint':
             case 'thirdQuartile':
             case 'complete':
+                playerInstance.adList[playerInstance.currentAdListId].status = eventType;
                 if (playerInstance.vastOptions.stopTracking[eventType] === false) {
                     if (playerInstance.vastOptions.tracking[eventType] !== null) {
                         trackingUris = playerInstance.vastOptions.tracking[eventType];
@@ -1116,11 +1117,10 @@ export default function (playerInstance, options) {
 
         playerInstance.isCurrentlyPlayingAd = false;
 
-        playerInstance.deleteVastAdElements();
-
         playerInstance.adFinished = true;
-        playerInstance.displayOptions.vastOptions.vastAdvanced.vastVideoEndedCallback();
         playerInstance.vastOptions = null;
+
+        playerInstance.deleteVastAdElements();
 
         playerInstance.setBuffering();
         const progressbarContainer = document.getElementById(playerInstance.videoPlayerId + '_fluid_controls_progress_container');
@@ -1158,11 +1158,14 @@ export default function (playerInstance, options) {
             adListId = temporaryAdPods.id;
         }
 
+        playerInstance.currentAdListId = adListId;
         return adListId;
     };
 
     // ADS
     playerInstance.checkForNextAd = () => {
+        playerInstance.displayOptions.vastOptions.vastAdvanced.vastVideoEndedCallback(playerInstance.adList[playerInstance.currentAdListId]);
+
         const availableNextAdID = playerInstance.getNextAdPod();
         if (availableNextAdID === null) {
             playerInstance.switchToMainVideo();
