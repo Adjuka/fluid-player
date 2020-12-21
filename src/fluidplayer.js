@@ -1,6 +1,7 @@
 'use strict';
 
 // Player modules
+import IMASDKModule from './modules/imaSDK';
 import VPAIDModule from './modules/vpaid';
 import VASTModule from './modules/vast';
 import CardboardModule from './modules/cardboard';
@@ -11,6 +12,7 @@ import StreamingModule from './modules/streaming';
 import UtilsModule from './modules/utils'
 
 const FP_MODULES = [
+    IMASDKModule,
     VPAIDModule,
     VASTModule,
     CardboardModule,
@@ -237,6 +239,7 @@ const fluidPlayerClass = function () {
                 vastTimeout: 5000,
                 showProgressbarMarkers: false,
                 allowVPAID: false,
+                allowIMASDK: false,
                 showPlayButton: false,
                 maxAllowedVastTagRedirects: 3,
                 vpaidTimeout: 3000,
@@ -362,6 +365,10 @@ const fluidPlayerClass = function () {
         self.createCardboard();
 
         self.userActivityChecker();
+
+        if(self.displayOptions.vastOptions.allowIMASDK) {
+            self.initializeIMASDK();
+        }
 
         self.setVastList();
 
@@ -1578,8 +1585,8 @@ const fluidPlayerClass = function () {
             self.firstPlayLaunched = true;
 
             //trigger the loading of the VAST Tag
-            self.prepareVast('preRoll');
             self.preRollAdPodsLength = preRolls.length;
+            self.prepareVast('preRoll');
         }
 
         const prepareVastAdsThatKnowDuration = () => {

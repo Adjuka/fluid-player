@@ -241,7 +241,11 @@ export default function (playerInstance, options) {
         const adListIdToPlay = playerInstance.getNextAdPod();
 
         if (adListIdToPlay !== null) {
-            playerInstance.renderLinearAd(adListIdToPlay, true);
+            if(playerInstance.adList[adListIdToPlay].imaSDK) {
+                playerInstance.RenderIMASDKAd(adListIdToPlay, true);
+            } else {
+                playerInstance.renderLinearAd(adListIdToPlay, true);
+            }
         }
     };
 
@@ -1176,7 +1180,12 @@ export default function (playerInstance, options) {
             playerInstance.isCurrentlyPlayingAd = false;
             playerInstance.vastOptions = null;
             playerInstance.adFinished = true;
-            playerInstance.renderLinearAd(availableNextAdID, false); // passing false so it doesn't backup the Ad playbacktime as video playback time
+
+            if(playerInstance.adList[availableNextAdID].imaSDK) {
+                playerInstance.RenderIMASDKAd(availableNextAdID, false);
+            } else {
+                playerInstance.renderLinearAd(availableNextAdID, false); // passing false so it doesn't backup the Ad playbacktime as video playback time
+            }
         }
     };
 

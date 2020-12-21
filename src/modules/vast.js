@@ -414,8 +414,13 @@ export default function (playerInstance, options) {
                 continue;
             }
 
-            playerInstance.processVastWithRetries(playerInstance.adList[adListId]);
             playerInstance.domRef.player.addEventListener('adId_' + adListId, playerInstance[roll]);
+
+            if(!playerInstance.adList[adListId].imaSDK) {
+                playerInstance.processVastWithRetries(playerInstance.adList[adListId]);
+            } else {
+                playerInstance.processIMASDKWithRetries(playerInstance.adList[adListId]);
+            }
         }
     };
 
@@ -588,6 +593,7 @@ export default function (playerInstance, options) {
 
                 const event = document.createEvent('Event');
 
+                console.log('adId_' + adListId);
                 event.initEvent('adId_' + adListId, false, true);
                 playerInstance.domRef.player.dispatchEvent(event);
                 playerInstance.displayOptions.vastOptions.vastAdvanced.vastLoadedCallback();
