@@ -3,11 +3,13 @@
 export default function (playerInstance, options) {
     playerInstance.initializeIMASDK = () => {
 
-        console.log('Initializing');
-
         const divAdDisplayContainer = document.createElement('div');
         divAdDisplayContainer.id = playerInstance.videoPlayerId + '_fluid_ad_container';
         divAdDisplayContainer.className = 'fluid_ad_container';
+
+        divAdDisplayContainer.style.height = playerInstance.domRef.player.offsetHeight + 'px';
+        divAdDisplayContainer.style.width = playerInstance.domRef.player.offsetWidth + 'px';
+
         playerInstance.domRef.player.parentNode.insertBefore(divAdDisplayContainer, playerInstance.domRef.player.nextSibling);
 
         playerInstance.imaSDKAdDisplayContainer = new google.ima.AdDisplayContainer(
@@ -15,9 +17,13 @@ export default function (playerInstance, options) {
 
         playerInstance.imaSDKAdsLoader = new google.ima.AdsLoader(playerInstance.imaSDKAdDisplayContainer);
 
-        console.log('Trying eventListener');
+        playerInstance.imaSDKAdsLoader.getSettings().setVpaidMode(google.ima.ImaSdkSettings.VpaidMode.ENABLED);
 
-        console.log(playerInstance.imaSDKAdsLoader);
+        if(playerInstance.displayOptions.vastOptions.allowIMASDK.IMASDKVPAIDMode === 'disabled') {
+            playerInstance.imaSDKAdsLoader.getSettings().setVpaidMode(google.ima.ImaSdkSettings.VpaidMode.DISABLED);
+        } else if(playerInstance.displayOptions.vastOptions.allowIMASDK.IMASDKVPAIDMode === 'insecure') {
+            playerInstance.imaSDKAdsLoader.getSettings().setVpaidMode(google.ima.ImaSdkSettings.VpaidMode.INSECURE);
+        }
 
         playerInstance.imaSDKAdsLoader.addEventListener(
             google.ima.AdsManagerLoadedEvent.Type.ADS_MANAGER_LOADED,
@@ -28,7 +34,6 @@ export default function (playerInstance, options) {
     }
 
     playerInstance.onIMASDKAdsManagerLoaded = (adsManagerLoadedEvent) => {
-        console.log('AdsManager Loaded');
         // Get the ads manager.
         let adsRenderingSettings = new google.ima.AdsRenderingSettings();
         adsRenderingSettings.restoreCustomPlaybackStateOnAdBreakComplete = true;
@@ -50,19 +55,23 @@ export default function (playerInstance, options) {
         playerInstance.imaSDKadsManager.addEventListener(google.ima.AdEvent.Type.LOADED, playerInstance.onIMASDKAdEvent);
         playerInstance.imaSDKadsManager.addEventListener(google.ima.AdEvent.Type.STARTED, playerInstance.onIMASDKAdEvent);
         playerInstance.imaSDKadsManager.addEventListener(google.ima.AdEvent.Type.COMPLETE, playerInstance.onIMASDKAdEvent);
+        playerInstance.imaSDKadsManager.addEventListener(google.ima.AdEvent.Type.COMPLETE, playerInstance.onIMASDKAdComplete);
 
         try {
-            console.log('Start Ad');
             // Initialize the ads manager. Ad rules playlist will start at this time.
-            playerInstance.imaSDKadsManager.init(640, 360, google.ima.ViewMode.NORMAL);
+            playerInstance.imaSDKadsManager.init(playerInstance.domRef.player.offsetWidth, playerInstance.domRef.player.offsetHeight, google.ima.ViewMode.NORMAL);
             // Call play to start showing the ad. Single video and overlay ads will
             // start at this time; the call will be ignored for ad rules.
+            if(playerInstance.displayOptions.layoutControls.mute) {
+                playerInstance.imaSDKadsManager.setVolume(0);
+            }
+
             playerInstance.imaSDKadsManager.start();
         } catch (adError) {
-            console.log(adError)
+            //console.log(adError)
             // An error may be thrown if there was a problem with the VAST response.
-            //videoContent.play();
-            }
+            //playerInstance.domRef.player.play();
+        }
     }
 
     playerInstance.processIMASDKWithRetries = (vastObj, backupTheVideoTime) => {
@@ -85,7 +94,6 @@ export default function (playerInstance, options) {
 
         const event = document.createEvent('Event');
 
-        console.log('adId_' + adListId);
         event.initEvent('adId_' + adListId, false, true);
         playerInstance.domRef.player.dispatchEvent(event);
         playerInstance.displayOptions.vastOptions.vastAdvanced.vastLoadedCallback();
@@ -94,8 +102,6 @@ export default function (playerInstance, options) {
             const title = document.getElementById(playerInstance.videoPlayerId + '_title');
             title.style.display = 'none';
         }
-
-        console.log('Process');
     }
 
     playerInstance.RenderIMASDKAd = (adListId, backupTheVideoTime) => {
@@ -104,35 +110,52 @@ export default function (playerInstance, options) {
         //get the proper ad
         playerInstance.vastOptions = playerInstance.adPool[adListId];
 
-        console.log('EEEE');
-
         if (backupTheVideoTime) {
             playerInstance.backupMainVideoContentTime(adListId);
         }
 
-        console.log('Noice');
-
         const playVideoPlayer = adListId => {
-            console.log('Called');
             //playerInstance.switchPlayerToIMASDKMode = adListId => {
-
+                playerInstance.debugMessage('starting function switchPlayerToIMASDKMode');
                 playerInstance.imaSDKAdDisplayContainer.initialize();
 
-                let adsRequest = new google.ima.AdsRequest();
-                adsRequest.adTagUrl = playerInstance.adList[adListId].vastTag;
+                playerInstance.imaSDKadsRequest = new google.ima.AdsRequest();
+                playerInstance.imaSDKadsRequest.adTagUrl = playerInstance.adList[adListId].vastTag;
+                playerInstance.imaSDKadsRequest.adObject = playerInstance.adList[adListId];
 
-                playerInstance.imaSDKAdsLoader.requestAds(adsRequest);
+                playerInstance.imaSDKAdsLoader.requestAds(playerInstance.imaSDKadsRequest);
             //}
+
+            playerInstance.domRef.player.pause();
+
+            // Remove the streaming objects to prevent errors on the VAST content
+            playerInstance.detachStreamers();
+
+            playerInstance.toggleLoader(false);
+            playerInstance.adList[adListId].played = true;
+            playerInstance.adFinished = false;
         }
 
         playVideoPlayer(adListId);
     }
 
     playerInstance.onIMASDKAdError = (adErrorEvent) => {
-        console.log(adErrorEvent.getError());
+        //console.log(adErrorEvent);
+        //playerInstance.domRef.player.play();
     };
 
     playerInstance.onIMASDKAdEvent = (adEvent) => {
+    };
+
+    playerInstance.onIMASDKAdComplete = (adEvent) => {
+        playerInstance.adFinished = true;
+
+        // TEMPORARY!!!! DO THIS PROPERLY
+        playerInstance.imaSDKadsRequest.adObject.status = 'complete';
+        playerInstance.displayOptions.vastOptions.vastAdvanced.vastVideoEndedCallback(playerInstance.imaSDKadsRequest.adObject);
+
+        // Next Ad
+        playerInstance.checkForNextAd();
     };
 
     playerInstance.onIMASDKContentPauseRequested = () => {

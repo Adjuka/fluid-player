@@ -240,6 +240,7 @@ const fluidPlayerClass = function () {
                 showProgressbarMarkers: false,
                 allowVPAID: false,
                 allowIMASDK: false,
+                IMASDKVPAIDMode: 'disabled',
                 showPlayButton: false,
                 maxAllowedVastTagRedirects: 3,
                 vpaidTimeout: 3000,

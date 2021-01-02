@@ -416,10 +416,10 @@ export default function (playerInstance, options) {
 
             playerInstance.domRef.player.addEventListener('adId_' + adListId, playerInstance[roll]);
 
-            if(!playerInstance.adList[adListId].imaSDK) {
-                playerInstance.processVastWithRetries(playerInstance.adList[adListId]);
-            } else {
+            if(playerInstance.displayOptions.vastOptions.allowIMASDK && playerInstance.adList[adListId].imaSDK) {
                 playerInstance.processIMASDKWithRetries(playerInstance.adList[adListId]);
+            } else {
+                playerInstance.processVastWithRetries(playerInstance.adList[adListId]);
             }
         }
     };

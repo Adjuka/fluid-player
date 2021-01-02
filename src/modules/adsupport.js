@@ -37,6 +37,7 @@ export default function (playerInstance, options) {
                 if (compare === 1) {
                     //VPAID version of ad is lower than we need
                     playerInstance.adList[adListId].error = true;
+                    playerInstance.debugMessage('vpaid lower version than needed');
                     playerInstance.playMainVideoWhenVpaidFails(403);
                     return false;
                 }
@@ -170,6 +171,7 @@ export default function (playerInstance, options) {
                 if (selectedMediaFile.src === false) {
                     // Couldn’t find MediaFile that is supported by this video player, based on the attributes of the MediaFile element.
                     playerInstance.adList[adListId].error = true;
+                    playerInstance.debugMessage('mediafile not supported');
                     playerInstance.playMainVideoWhenVastFails(403);
                     return false;
                 }
@@ -241,7 +243,7 @@ export default function (playerInstance, options) {
         const adListIdToPlay = playerInstance.getNextAdPod();
 
         if (adListIdToPlay !== null) {
-            if(playerInstance.adList[adListIdToPlay].imaSDK) {
+            if(playerInstance.displayOptions.vastOptions.allowIMASDK && playerInstance.adList[adListIdToPlay].imaSDK) {
                 playerInstance.RenderIMASDKAd(adListIdToPlay, true);
             } else {
                 playerInstance.renderLinearAd(adListIdToPlay, true);
@@ -566,6 +568,7 @@ export default function (playerInstance, options) {
             if (compare === 1) {
                 //VPAID version of ad is lower than we need
                 playerInstance.adList[adListId].error = true;
+                playerInstance.debugMessage('vpaid lower version than needed');
                 playerInstance.playMainVideoWhenVpaidFails(403);
                 return false;
             }

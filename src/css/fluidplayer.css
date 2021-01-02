@@ -1315,3 +1315,10 @@ _:-ms-lang(x),
     content: 'HD';
     padding-left: 3px;
 }
+
+/* IMA SDK */
+.fluid_ad_container {
+    position: absolute;
+    top: 0px;
+    left: 0px;
+}
