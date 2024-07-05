@@ -44,8 +44,8 @@ const getDistOptions = (mode) => {
 // Webpack configuration
 module.exports = (env, argv) => {
     const wpMode = typeof argv.mode !== 'undefined' ? argv.mode : 'development';
-    const wpDebug = wpMode === 'development' && typeof argv.debug !== 'undefined' && !!argv.debug;
-    const wpDist = typeof argv.dist !== 'undefined' ? argv.dist : 'development';
+    const wpDebug = wpMode === 'development' && typeof env.debug !== 'undefined' && !!env.debug;
+    const wpDist = typeof env.dist !== 'undefined' ? env.dist : 'development';
     const wpDistOptions = getDistOptions(wpDist);
 
     if ('development' !== wpDist && (wpMode !== 'production' || wpDebug)) {
@@ -68,6 +68,10 @@ module.exports = (env, argv) => {
         // Locate all E2E cases
         const caseFiles = [];
         fs.readdirSync(path.resolve(__dirname, 'test/html/')).forEach(file => {
+            if (file === 'special-cases') {
+                return;
+            }
+
             const absPath = path.resolve(__dirname, 'test/html/', file);
             const caseHtml = cheerio.load(fs.readFileSync(absPath));
             const publicName = file.replace('.tpl', '');
@@ -75,13 +79,25 @@ module.exports = (env, argv) => {
             plugins.push(new HtmlWebpackPlugin({
                 template: path.resolve(__dirname, 'test/html/', file),
                 inject: false,
-                filename: publicName
+                filename: publicName,
+                scriptLoading: "blocking",
             }));
 
             caseFiles.push({
                 file: publicName,
                 name: caseHtml('title').text()
             });
+        });
+
+        fs.readdirSync(path.resolve(__dirname, 'test/html/special-cases')).forEach(file => {
+            const publicName = file.replace('.tpl', '');
+
+            plugins.push(new HtmlWebpackPlugin({
+                template: path.resolve(__dirname, 'test/html/special-cases', file),
+                inject: false,
+                filename: publicName,
+                scriptLoading: "blocking",
+            }));
         });
 
         // Emit all cases as separate HTML pages
@@ -96,17 +112,19 @@ module.exports = (env, argv) => {
 
         // Copy static assets for E2E
         plugins.push(new CopyPlugin(
-            [
-                {from: path.resolve(__dirname, 'test/static/'), to: path.resolve(wpDistOptions.path, 'static')}
-            ]
+            {
+                patterns: [
+                    { from: path.resolve(__dirname, 'test/static/'), to: path.resolve(wpDistOptions.path, 'static') }
+                ]
+            }
         ));
     }
 
     return {
         devServer: {
-            contentBase: wpDistOptions.path,
-            index: 'index.html',
-            watchContentBase: true
+            static: wpDistOptions.path,
+            // index: 'index.html',
+            // allowedHosts: "all", // To use with remote hosting (ie: ngrok)
         },
         devtool: wpMode === 'development' ? 'source-map' : false,
         plugins,
@@ -139,9 +157,9 @@ module.exports = (env, argv) => {
                     use: ['style-loader', 'css-loader'],
                 },
                 {
-                    test: /\.svg$/,
-                    loader: 'svg-url-loader'
-                }
+                    test: /\.svg/,
+                    type: 'asset'
+                },
             ],
         }
     };

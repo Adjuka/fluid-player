@@ -5,7 +5,7 @@
     <meta name="viewport"
           content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <title>VOD with VAST</title>
+    <title>VOD with CTA set from VAST with no friendly url</title>
     <%= htmlWebpackPlugin.tags.headTags %>
     <style lang="css">
         #fluid-player-e2e-case {
@@ -16,9 +16,9 @@
 <body>
 
 <video id="fluid-player-e2e-case">
-    <source src='https://cdn.fluidplayer.com/videos/valerian-1080p.mkv' data-fluid-hd title="1080p" type='video/mp4'/>
-    <source src='https://cdn.fluidplayer.com/videos/valerian-720p.mkv' data-fluid-hd title="720p" type='video/mp4'/>
-    <source src='https://cdn.fluidplayer.com/videos/valerian-480p.mkv' title="480p" type='video/mp4'/>
+    <source src="https://cdn.fluidplayer.com/videos/valerian-1080p.mkv" data-fluid-hd title="1080p" type="video/mp4"/>
+    <source src="https://cdn.fluidplayer.com/videos/valerian-720p.mkv" data-fluid-hd title="720p" type="video/mp4"/>
+    <source src="https://cdn.fluidplayer.com/videos/valerian-480p.mkv" title="480p" type="video/mp4"/>
 </video>
 
 <%= htmlWebpackPlugin.tags.bodyTags %>
@@ -26,17 +26,12 @@
 <script>
     var instance = fluidPlayer('fluid-player-e2e-case', {
         vastOptions: {
-            allowVPAID: true, // Default false.
+            adCTATextVast: true, // Enables getting CTA from the VAST tag
             adList: [
                 {
                     roll: 'preRoll',
-                    vastTag: '/static/vpaid_linear.xml'
-                },
-                {
-                    roll: 'midRoll',
-                    vastTag: '/static/vpaid_nonlinear.xml',
-                    timer: 4
-                },
+                    vastTag: '/static/vast_cta_no_friendly_url.xml', // VAST Tag with TitleCTA extension with CTA information
+                }
             ]
         }
     });

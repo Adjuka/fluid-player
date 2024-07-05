@@ -1,5 +1,129 @@
 # CHANGELOG
 
+## 3.33.0 (2024-07-02)
+* [Pull #818](https://github.com/fluid-player/fluid-player/pull/818) Suggested Videos Feature in Fluid Player
+
+## 3.32.0 (2024-03-21)
+* [Pull #804](https://github.com/fluid-player/fluid-player/pull/804) htmlOnPauseBlock not being displayed with last version of FP
+
+## 3.31.0 (2024-01-25)
+* [Pull #788](https://github.com/fluid-player/fluid-player/pull/788) Fluid Player doesn't work with Next.js
+* [Pull #791](https://github.com/fluid-player/fluid-player/pull/791) Impression events aren't called for some VAST tags within the VAST wrapper chain
+
+## 3.30.0 (2024-01-11)
+* [Pull #789](https://github.com/fluid-player/fluid-player/pull/789) Uncaught TypeError: Cannot set properties of null (setting 'slotIframe') while testing on VOD with VPAID Non Linear
+
+## 3.29.0 (2023-12-14)
+* [Pull #783](https://github.com/fluid-player/fluid-player/pull/783) Fix test cases in the development sever
+* [Pull #785](https://github.com/fluid-player/fluid-player/pull/785) FluidPlayer > Error > onPauseRoll In Video Banner VAST
+
+## 3.28.0 (2023-11-16)
+* [Pull #776](https://github.com/fluid-player/fluid-player/pull/776) Fluid Player doesn't work with shadow DOM
+
+## 3.27.0 (2023-10-19)
+* [Pull #771](https://github.com/fluid-player/fluid-player/pull/771) Method loadVpaid create frame without body
+
+## 3.26.0 (2023-10-12)
+* [Pull #768](https://github.com/fluid-player/fluid-player/pull/768) Stretch posterImage to playerwindow
+* [Pull #769](https://github.com/fluid-player/fluid-player/pull/769) Events don't differ from Ad and Main video
+
+## 3.25.0 (2023-09-21)
+* [Pull #766](https://github.com/fluid-player/fluid-player/pull/766) adClickable and CTA parameters don't work when 2 VAST ad is loaded
+
+## 3.24.0 (2023-09-08)
+* [Pull #763](https://github.com/fluid-player/fluid-player/pull/763) Player can't be restarted by destroying it and initializing it again
+
+## 3.23.0 (2023-08-28)
+* [Pull #757](https://github.com/fluid-player/fluid-player/pull/757) Preload doesn't work for .m3u8 files when the player is serving in-stream ads
+* [Pull #760](https://github.com/fluid-player/fluid-player/pull/760) Lighthouse says: Does not use passive listeners to improve scrolling performance
+
+## 3.22.0 (2023-08-17)
+* [Pull #755](https://github.com/fluid-player/fluid-player/pull/755) Percentages are not accepted for "timer" property
+
+## 3.21.0 (2023-08-08)
+* [Pull #748](https://github.com/fluid-player/fluid-player/pull/748) CurrentTime reset after switch HLS source on IOS
+* [Pull #752](https://github.com/fluid-player/fluid-player/pull/752) Add "controlForwardBackward" setting inside the player instead of the control bar
+
+## 3.20.0 (2023-07-24)
+* [Pull #749](https://github.com/fluid-player/fluid-player/pull/749) Mouse disappears
+* [Pull #750](https://github.com/fluid-player/fluid-player/pull/750) In mobile and when using .m3u8 files, user needs to click the player twice in order to play the video
+
+## 3.19.0 (2023-07-12)
+* [Pull #746](https://github.com/fluid-player/fluid-player/pull/746) Could not find a declaration file for module 'fluid-player'
+
+## 3.18.0 (2023-06-30)
+* [Pull #744](https://github.com/fluid-player/fluid-player/pull/744) Failed to resolve import "cheerio/lib/api/traversing"
+
+## 3.17.0 (2023-06-16)
+* [Pull #734](https://github.com/fluid-player/fluid-player/pull/734) MiniPlayer Mobile support
+* [Pull #735](https://github.com/fluid-player/fluid-player/pull/735) MiniPlayer position configuration
+* [Pull #739](https://github.com/fluid-player/fluid-player/pull/739) MiniPlayer Activate miniplayer when scrolling goes out of viewport
+* [Pull #740](https://github.com/fluid-player/fluid-player/pull/740) MiniPlayer Allowing trigger MiniPlayer by code
+* [Pull #736](https://github.com/fluid-player/fluid-player/pull/736) Fluid player doesn't track clicks on some sites
+
+## 3.16.0 (2023-05-31)
+* [Pull #721](https://github.com/fluid-player/fluid-player/pull/721) Fluid Player loads midRoll even if timer is longer than main video
+* [Pull #732](https://github.com/fluid-player/fluid-player/pull/732) MiniPlayer MVP
+
+## 3.15.0 (2023-05-09)
+* [Pull #727](https://github.com/fluid-player/fluid-player/pull/727) Player required 2 clicks to play video New Iphone 11 Pro Chrome
+
+## 3.14.0 (2023-04-27)
+* [Pull #722](https://github.com/fluid-player/fluid-player/pull/722) Support Video Waterfall VAST Response
+
+## 3.13.0 (2023-03-09)
+* [Pull #714](https://github.com/fluid-player/fluid-player/pull/714) Support Video Waterfall VAST Response
+
+## 3.12.0 (2023-01-10)
+* [Pull #707](https://github.com/fluid-player/fluid-player/pull/707) Decrease volumes & revenue on In-stream zones
+
+## 3.11.1 (2023-01-03)
+* Update dependencies
+
+## 3.11.0 (2023-01-03)
+* [Pull #614](https://github.com/fluid-player/fluid-player/pull/614) Add check for process being defined
+* [Pull #561](https://github.com/fluid-player/fluid-player/pull/561) Allow customizing playbackRates
+
+## 3.10.0 (2022-12-15)
+* [Pull #687](https://github.com/fluid-player/fluid-player/pull/687) LocalStorage not available in Chrome incognito mode is breaking JS
+* [Pull #704](https://github.com/fluid-player/fluid-player/pull/704) In ad serving, the skip button when is without time delay it should trigger immediately the "skip ad"
+
+## 3.9.0 (2022-10-18)
+* [Pull #688](https://github.com/fluid-player/fluid-player/pull/688) Selecting subtitle by default
+
+## 3.8.0 (2022-10-07)
+* [Pull #685](https://github.com/fluid-player/fluid-player/pull/685) Fluidplayer > 'autoHide' in Desktop only works when the cursor is on top of the player.
+* [Pull #689](https://github.com/fluid-player/fluid-player/pull/689) Mobile view_ Error in console and wrong positioning of the CTA text
+
+## 3.7.0 (2022-09-28)
+* [Pull #650](https://github.com/fluid-player/fluid-player/pull/650) Play main video after preRoll ends not work
+
+## 3.6.0 (2022-08-24)
+* [Pull #666](https://github.com/fluid-player/fluid-player/pull/666) CTA Overlay > cannot be removed by publisher
+
+## 3.5.0 (2022-07-20)
+* [Pull #669](https://github.com/fluid-player/fluid-player/pull/669) Video CTA / Fluid Player
+* [Pull #671](https://github.com/fluid-player/fluid-player/pull/671) Video CTA - update FP to support new CTA structure from VAST Tag
+
+## 3.4.0 (2022-07-05)
+* [Pull #652](https://github.com/fluid-player/fluid-player/pull/652) Video on demand and linear VPAID does not work on iOS Safari
+* [Pull #664](https://github.com/fluid-player/fluid-player/pull/664) Video CTA / Fluid Player
+
+## 3.3.0 (2022-06-22)
+* [Pull #656](https://github.com/fluid-player/fluid-player/pull/656) Video CTA / Fluid Player
+
+## 3.2.1 (2022-05-17)
+* Update dependencies
+
+## 3.2.0
+* [Pull #641](https://github.com/fluid-player/fluid-player/pull/641) FluidPlayer > Streaming files compatibility
+
+## 3.1.0
+* [Pull #619](https://github.com/fluid-player/fluid-player/pull/619) Looping videos show loading spinner for a split second before looping
+* [Pull #621](https://github.com/fluid-player/fluid-player/pull/621) FluidPlayer> Mouse disappears
+* [Pull #622](https://github.com/fluid-player/fluid-player/pull/622) contextMenu.links labels are not working after play
+* [Pull #628](https://github.com/fluid-player/fluid-player/pull/628) Overlay html over video (also in fullscreen)
+
 ## 3.0.4
 * [Pull #489](https://github.com/fluid-player/fluid-player/pull/489) Fix issues with nonLinear ads not closing
 

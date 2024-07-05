@@ -1,6 +1,67 @@
 // VAST support module
-'use strict';
+
+/* Type declarations */
+
+/**
+ * @typedef {Object} RawAdTree
+ * @property {Array<RawAdTree>} children
+ * @property {XMLDocument} data
+ * @property {'inLine'|'wrapper'} tagType
+ * @property {boolean|undefined} fallbackOnNoAd
+ * @property {Array<XMLDocument> | undefined} wrappers
+*/
+
+/**
+ * @typedef {Object} RawAd
+ * @property {XMLDocument} data
+ * @property {Array<XMLDocument>} wrappers
+ * @property {'inLine' | 'wrapper'} tagType
+ */
+
+/**
+ * @typedef {Object & RawAd} Ad
+ * @property {Array<string>} clicktracking
+ * @property {string} errorUrl
+ * @property {Array<string>} impressions
+ * @property {Array<any>} stopTracking
+ * @property {Array<any>} tracking
+ * @property {number|null} sequence
+ * @property {number} duration
+ * @property {boolean} played
+ */
+
 export default function (playerInstance, options) {
+    /**
+     * Gets CTA parameters from VAST and sets them on tempOptions
+     *
+     * Fallbacks to any value that is filled on the TitleCTA extension, but needs at least an url and a text
+     *
+     * @param {HTMLElement} titleCtaElement
+     *
+     * @param {any} tmpOptions
+     */
+    playerInstance.setCTAFromVast = (titleCtaElement, tmpOptions) => {
+        if (playerInstance.displayOptions.vastOptions.adCTATextVast && titleCtaElement) {
+            const mobileText = playerInstance.extractNodeDataByTagName(titleCtaElement, 'MobileText');
+            const desktopText = playerInstance.extractNodeDataByTagName(titleCtaElement, 'PCText');
+            const link =
+                playerInstance.extractNodeDataByTagName(titleCtaElement, 'DisplayUrl') ||
+                playerInstance.extractNodeDataByTagName(titleCtaElement, 'Link');
+            const tracking = playerInstance.extractNodeDataByTagName(titleCtaElement, 'Tracking');
+            const isMobile = window.matchMedia('(max-width: 768px)').matches;
+
+            if ((desktopText || mobileText) && tracking) {
+                tmpOptions.titleCTA = {
+                    text: isMobile ?
+                        mobileText || desktopText :
+                        desktopText || mobileText,
+                    link: link || null,
+                    tracking,
+                }
+            }
+        }
+    };
+
     playerInstance.getClickThroughUrlFromLinear = (linear) => {
         const videoClicks = linear.getElementsByTagName('VideoClicks');
 
@@ -84,7 +145,7 @@ export default function (playerInstance, options) {
     };
 
     playerInstance.getDimensionFromNonLinear = (tag) => {
-        const result = {'width': null, 'height': null};
+        const result = { 'width': null, 'height': null };
         const nonLinear = tag.getElementsByTagName('NonLinear');
 
         if (nonLinear.length) {
@@ -129,6 +190,25 @@ export default function (playerInstance, options) {
         }
 
         return result;
+    };
+
+    /**
+     * Gets the first element found by tag name, and returns the element data
+     *
+     * @param {HTMLElement} parentNode
+     *
+     * @param {string} tagName
+     *
+     * @returns {string|null}
+     */
+    playerInstance.extractNodeDataByTagName = (parentNode, tagName) => {
+        const element = parentNode.getElementsByTagName(tagName);
+
+        if (element && element.length) {
+            return playerInstance.extractNodeData(element[0]);
+        } else {
+            return null;
+        }
     };
 
     playerInstance.extractNodeData = (parentNode) => {
@@ -238,7 +318,7 @@ export default function (playerInstance, options) {
                     if (typeof tmpOptions.stopTracking[eventType] === 'undefined') {
                         tmpOptions.stopTracking[eventType] = [];
                     }
-                    tmpOptions.tracking[eventType].push(trackingEvents[i].childNodes[0].nodeValue);
+                    tmpOptions.tracking[eventType].push(trackingEvents[i].textContent.trim());
                     tmpOptions.stopTracking[eventType] = false;
 
                     break;
@@ -257,7 +337,7 @@ export default function (playerInstance, options) {
                         };
                     }
 
-                    tmpOptions.tracking[eventType][oneEventOffset].elements.push(trackingEvents[i].childNodes[0].nodeValue);
+                    tmpOptions.tracking[eventType][oneEventOffset].elements.push(trackingEvents[i].textContent.trim());
 
                     break;
 
@@ -368,17 +448,17 @@ export default function (playerInstance, options) {
     };
 
     playerInstance.recalculateAdDimensions = () => {
-        const videoPlayer = document.getElementById(playerInstance.videoPlayerId);
-        const divClickThrough = document.getElementById('vast_clickthrough_layer_' + playerInstance.videoPlayerId);
+        const videoPlayer = playerInstance.domRef.player;
+        const divClickThrough = playerInstance.domRef.wrapper.querySelector('.vast_clickthrough_layer');
 
         if (divClickThrough) {
             divClickThrough.style.width = videoPlayer.offsetWidth + 'px';
             divClickThrough.style.height = videoPlayer.offsetHeight + 'px';
         }
 
-        const requestFullscreenFunctionNames = playerInstance.checkFullscreenSupport('fluid_video_wrapper_' + playerInstance.videoPlayerId);
-        const fullscreenButton = document.getElementById(playerInstance.videoPlayerId + '_fluid_control_fullscreen');
-        const menuOptionFullscreen = document.getElementById(playerInstance.videoPlayerId + 'context_option_fullscreen');
+        const requestFullscreenFunctionNames = playerInstance.checkFullscreenSupport();
+        const fullscreenButton = playerInstance.domRef.wrapper.querySelector('.fluid_control_fullscreen');
+        const menuOptionFullscreen = playerInstance.domRef.wrapper.querySelector('.context_option_fullscreen');
 
         if (requestFullscreenFunctionNames) {
             // this will go other way around because we already exited full screen
@@ -392,7 +472,7 @@ export default function (playerInstance, options) {
         } else {
             // TODO: I am fairly certain this fallback does not work...
             //The browser does not support the Fullscreen API, so a pseudo-fullscreen implementation is used
-            const fullscreenTag = document.getElementById('fluid_video_wrapper_' + playerInstance.videoPlayerId);
+            const fullscreenTag = playerInstance.domRef.wrapper;
 
             if (fullscreenTag.className.search(/\bpseudo_fullscreen\b/g) !== -1) {
                 fullscreenTag.className += ' pseudo_fullscreen';
@@ -404,26 +484,30 @@ export default function (playerInstance, options) {
         }
     };
 
+    /**
+     * Prepares VAST for instant ads
+     *
+     * @param roll
+     */
     playerInstance.prepareVast = (roll) => {
         let list = playerInstance.findRoll(roll);
 
         for (let i = 0; i < list.length; i++) {
-            const adListId = list[i];
+            const rollListId = list[i];
 
-            if (!(playerInstance.adList[adListId].vastLoaded !== true && playerInstance.adList[adListId].error !== true)) {
+            if (!(playerInstance.rollsById[rollListId].vastLoaded !== true && playerInstance.rollsById[rollListId].error !== true)) {
                 continue;
             }
 
             playerInstance.domRef.player.addEventListener('adId_' + adListId, playerInstance[roll]);
 
             if(playerInstance.displayOptions.vastOptions.allowIMASDK && playerInstance.adList[adListId].imaSDK) {
-                playerInstance.processIMASDKWithRetries(playerInstance.adList[adListId]);
+                playerInstance.processIMASDKWithRetries(playerInstance.rollsById[rollListId]);
             } else {
-                playerInstance.processVastWithRetries(playerInstance.adList[adListId]);
+                playerInstance.processVastWithRetries(playerInstance.rollsById[rollListId]);
             }
         }
     };
-
 
     playerInstance.playMainVideoWhenVastFails = (errorCode) => {
         playerInstance.debugMessage('playMainVideoWhenVastFails called');
@@ -448,182 +532,149 @@ export default function (playerInstance, options) {
     /**
      * Process the XML response
      *
-     * @param xmlResponse
-     * @param tmpOptions
-     * @param callBack
+     * @param ad
      */
-    playerInstance.processVastXml = (xmlResponse, tmpOptions, callBack) => {
-        let clickTracks;
+    function processAdCreatives(ad) {
+        const adElement = ad.data;
 
-        if (!xmlResponse) {
-            callBack(false);
+        if (!adElement) {
             return;
         }
 
-        //Get impression tag
-        const impression = xmlResponse.getElementsByTagName('Impression');
-        if (impression !== null) {
-            playerInstance.registerImpressionEvents(impression, tmpOptions);
-        }
+        // Current support is for only one creative element
+        const creativeElements = Array.from(adElement.getElementsByTagName('Creative')).splice(0, 1);
 
-        //Get the error tag, if any
-        const errorTags = xmlResponse.getElementsByTagName('Error');
-        if (errorTags !== null) {
-            playerInstance.registerErrorEvents(errorTags, tmpOptions);
-        }
+        if (creativeElements.length) {
+            creativeElements.forEach(creativeElement => {
 
-        //Get Creative
-        const creative = xmlResponse.getElementsByTagName('Creative');
+                if (ad.adType === 'linear') {
+                    const linearCreatives = creativeElement.getElementsByTagName('Linear');
+                    const creativeLinear = linearCreatives[0];
 
-        //Currently only 1 creative and 1 linear is supported
-        if ((typeof creative !== 'undefined') && creative.length) {
-            const arrayCreativeLinears = creative[0].getElementsByTagName('Linear');
+                    //Extract the Ad data if it is actually the Ad (!wrapper)
+                    if (!playerInstance.hasVastAdTagUri(adElement) && playerInstance.hasInLine(adElement)) {
+                        //Set initial values
+                        ad.adFinished = false;
+                        ad.vpaid = false;
 
-            if ((typeof arrayCreativeLinears !== 'undefined') && (arrayCreativeLinears !== null) && arrayCreativeLinears.length) {
+                        //Extract the necessary data from the Linear node
+                        ad.skipoffset = playerInstance.convertTimeStringToSeconds(creativeLinear.getAttribute('skipoffset'));
+                        ad.clickthroughUrl = playerInstance.getClickThroughUrlFromLinear(creativeLinear);
+                        ad.duration = playerInstance.getDurationFromLinear(creativeLinear);
+                        ad.mediaFileList = playerInstance.getMediaFileListFromLinear(creativeLinear);
+                        ad.adParameters = playerInstance.getAdParametersFromLinear(creativeLinear);
+                        ad.iconClick = ad.iconClick || playerInstance.getIconClickThroughFromLinear(creativeLinear);
 
-                const creativeLinear = arrayCreativeLinears[0];
-                playerInstance.registerTrackingEvents(creativeLinear, tmpOptions);
-
-                clickTracks = playerInstance.getClickTrackingEvents(creativeLinear);
-                playerInstance.registerClickTracking(clickTracks, tmpOptions);
-
-                //Extract the Ad data if it is actually the Ad (!wrapper)
-                if (!playerInstance.hasVastAdTagUri(xmlResponse) && playerInstance.hasInLine(xmlResponse)) {
-
-                    //Set initial values
-                    tmpOptions.adFinished = false;
-                    tmpOptions.adType = 'linear';
-                    tmpOptions.vpaid = false;
-
-                    //Extract the necessary data from the Linear node
-                    tmpOptions.skipoffset = playerInstance.convertTimeStringToSeconds(creativeLinear.getAttribute('skipoffset'));
-                    tmpOptions.clickthroughUrl = playerInstance.getClickThroughUrlFromLinear(creativeLinear);
-                    tmpOptions.duration = playerInstance.getDurationFromLinear(creativeLinear);
-                    tmpOptions.mediaFileList = playerInstance.getMediaFileListFromLinear(creativeLinear);
-                    tmpOptions.adParameters = playerInstance.getAdParametersFromLinear(creativeLinear);
-                    tmpOptions.iconClick = playerInstance.getIconClickThroughFromLinear(creativeLinear);
-
-                    if (tmpOptions.adParameters) {
-                        tmpOptions.vpaid = true;
+                        if (ad.adParameters) {
+                            ad.vpaid = true;
+                        }
                     }
                 }
-            }
 
-            const arrayCreativeNonLinears = creative[0].getElementsByTagName('NonLinearAds');
+                if (ad.adType === 'nonLinear') {
+                    const nonLinearCreatives = creativeElement.getElementsByTagName('NonLinearAds');
+                    const creativeNonLinear = nonLinearCreatives[0];
 
-            if ((typeof arrayCreativeNonLinears !== 'undefined') && (arrayCreativeNonLinears !== null) && arrayCreativeNonLinears.length) {
+                    //Extract the Ad data if it is actually the Ad (!wrapper)
+                    if (!playerInstance.hasVastAdTagUri(adElement) && playerInstance.hasInLine(adElement)) {
+                        //Set initial values
+                        ad.vpaid = false;
 
-                const creativeNonLinear = arrayCreativeNonLinears[0];
-                playerInstance.registerTrackingEvents(creativeNonLinear, tmpOptions);
+                        //Extract the necessary data from the NonLinear node
+                        ad.clickthroughUrl = playerInstance.getClickThroughUrlFromNonLinear(creativeNonLinear);
+                        ad.duration = playerInstance.getDurationFromNonLinear(creativeNonLinear); // VAST version < 4.0
+                        ad.dimension = playerInstance.getDimensionFromNonLinear(creativeNonLinear); // VAST version < 4.0
+                        ad.staticResource = playerInstance.getStaticResourceFromNonLinear(creativeNonLinear);
+                        ad.creativeType = playerInstance.getCreativeTypeFromStaticResources(creativeNonLinear);
+                        ad.adParameters = playerInstance.getAdParametersFromLinear(creativeNonLinear);
 
-                clickTracks = playerInstance.getNonLinearClickTrackingEvents(creativeNonLinear);
-                playerInstance.registerClickTracking(clickTracks, tmpOptions);
-
-                //Extract the Ad data if it is actually the Ad (!wrapper)
-                if (!playerInstance.hasVastAdTagUri(xmlResponse) && playerInstance.hasInLine(xmlResponse)) {
-
-                    //Set initial values
-                    tmpOptions.adType = 'nonLinear';
-                    tmpOptions.vpaid = false;
-
-                    //Extract the necessary data from the NonLinear node
-                    tmpOptions.clickthroughUrl = playerInstance.getClickThroughUrlFromNonLinear(creativeNonLinear);
-                    tmpOptions.duration = playerInstance.getDurationFromNonLinear(creativeNonLinear); // VAST version < 4.0
-                    tmpOptions.dimension = playerInstance.getDimensionFromNonLinear(creativeNonLinear); // VAST version < 4.0
-                    tmpOptions.staticResource = playerInstance.getStaticResourceFromNonLinear(creativeNonLinear);
-                    tmpOptions.creativeType = playerInstance.getCreativeTypeFromStaticResources(creativeNonLinear);
-                    tmpOptions.adParameters = playerInstance.getAdParametersFromLinear(creativeNonLinear);
-
-                    if (tmpOptions.adParameters) {
-                        tmpOptions.vpaid = true;
+                        if (ad.adParameters) {
+                            ad.vpaid = true;
+                        }
                     }
-
                 }
-            }
-
-            //Extract the Ad data if it is actually the Ad (!wrapper)
-            if (!playerInstance.hasVastAdTagUri(xmlResponse) && playerInstance.hasInLine(xmlResponse)) {
-                if (typeof tmpOptions.mediaFileList !== 'undefined' || typeof tmpOptions.staticResource !== 'undefined') {
-                    callBack(true, tmpOptions);
-                } else {
-                    callBack(false);
-                }
-            }
-        } else {
-            callBack(false);
+            });
         }
-    };
+
+        return ad;
+    }
 
     /**
      * Parse the VAST Tag
      *
-     * @param vastTag
-     * @param adListId
+     * @param vastObj
      */
-
     playerInstance.processVastWithRetries = (vastObj) => {
         let vastTag = vastObj.vastTag;
-        const adListId = vastObj.id;
+        const rollListId = vastObj.id;
 
-        const handleVastResult = function (pass, tmpOptions) {
-            if (pass && typeof tmpOptions !== 'undefined' && tmpOptions.vpaid && !playerInstance.displayOptions.vastOptions.allowVPAID) {
-                pass = false;
+        playerInstance.domRef.player.addEventListener('adId_' + rollListId, playerInstance[vastObj.roll]);
+
+        const handleVastResult = function (pass, adOptionsList) {
+            if (pass && Array.isArray(adOptionsList) && !playerInstance.displayOptions.vastOptions.allowVPAID && adOptionsList.some(adOptions => adOptions.vpaid)) {
+                adOptionsList = adOptionsList.filter(adOptions => adOptions.vpaid !== true);
                 playerInstance.announceLocalError('103', 'VPAID not allowed, so skipping this VAST tag.')
             }
 
-            if (pass) {
-                // ok
-                if (tmpOptions.adType === 'linear') {
+            if (pass && Array.isArray(adOptionsList) && adOptionsList.length) {
 
-                    if ((typeof tmpOptions.iconClick !== 'undefined') && (tmpOptions.iconClick !== null) && tmpOptions.iconClick.length) {
-                        playerInstance.adList[adListId].landingPage = tmpOptions.iconClick;
+                playerInstance.adPool[rollListId] = [];
+
+                adOptionsList.forEach((tmpOptions, index) => {
+                    tmpOptions.id = rollListId + '_AD' + index;
+                    tmpOptions.rollListId = rollListId;
+
+                    if (tmpOptions.adType === 'linear') {
+
+                        if ((typeof tmpOptions.iconClick !== 'undefined') && (tmpOptions.iconClick !== null) && tmpOptions.iconClick.length) {
+                            tmpOptions.landingPage = tmpOptions.iconClick;
+                        }
+
+                        const selectedMediaFile = playerInstance.getSupportedMediaFileObject(tmpOptions.mediaFileList);
+                        if (selectedMediaFile) {
+                            tmpOptions.mediaType = selectedMediaFile.mediaType;
+                        }
+
                     }
 
-                    const selectedMediaFile = playerInstance.getSupportedMediaFileObject(tmpOptions.mediaFileList);
-                    if (selectedMediaFile) {
-                        playerInstance.adList[adListId].mediaType = selectedMediaFile.mediaType;
+                    tmpOptions.adType = tmpOptions.adType ? tmpOptions.adType : 'unknown';
+                    playerInstance.adPool[rollListId].push(Object.assign({}, tmpOptions));
+
+                    if (playerInstance.hasTitle()) {
+                        const title = playerInstance.domRef.wrapper.querySelector('.fp_title');
+                        title.style.display = 'none';
                     }
 
-                }
+                    playerInstance.rollsById[rollListId].ads.push(tmpOptions);
+                });
 
-                playerInstance.adList[adListId].adType = tmpOptions.adType ? tmpOptions.adType : 'unknown';
-                playerInstance.adList[adListId].status = 'unknown';
-                playerInstance.adList[adListId].vastLoaded = true;
-                playerInstance.adPool[adListId] = Object.assign({}, tmpOptions);
+                playerInstance.rollsById[rollListId].vastLoaded = true;
 
                 const event = document.createEvent('Event');
 
-                console.log('adId_' + adListId);
-                event.initEvent('adId_' + adListId, false, true);
+                event.initEvent('adId_' + rollListId, false, true);
                 playerInstance.domRef.player.dispatchEvent(event);
                 playerInstance.displayOptions.vastOptions.vastAdvanced.vastLoadedCallback();
-
-                if (playerInstance.hasTitle()) {
-                    const title = document.getElementById(playerInstance.videoPlayerId + '_title');
-                    title.style.display = 'none';
-                }
-
             } else {
                 // when vast failed
                 playerInstance.announceLocalError('101');
 
                 if (vastObj.hasOwnProperty('fallbackVastTags') && vastObj.fallbackVastTags.length > 0) {
                     vastTag = vastObj.fallbackVastTags.shift();
-                    playerInstance.processUrl(vastTag, handleVastResult);
+                    playerInstance.processUrl(vastTag, handleVastResult, rollListId);
                 } else {
                     if (vastObj.roll === 'preRoll') {
                         playerInstance.preRollFail(vastObj);
                     }
-                    playerInstance.adList[adListId].error = true;
+                    playerInstance.rollsById[rollListId].error = true;
                 }
             }
         };
 
-        playerInstance.processUrl(vastTag, handleVastResult);
+        playerInstance.processUrl(vastTag, handleVastResult, rollListId);
     };
 
-
-    playerInstance.processUrl = (vastTag, callBack) => {
+    playerInstance.processUrl = (vastTag, callBack, rollListId) => {
         const numberOfRedirects = 0;
 
         const tmpOptions = {
@@ -638,101 +689,229 @@ export default function (playerInstance, options) {
             vastTag,
             numberOfRedirects,
             tmpOptions,
-            callBack
+            callBack,
+            rollListId
         );
     };
 
-    playerInstance.resolveVastTag = (vastTag, numberOfRedirects, tmpOptions, callBack) => {
-        if (!vastTag || vastTag === '') {
-            callBack(false);
-            return;
+    /**
+     * Gets first stand-alone ad
+     *
+     * @param {Array<RawAdTree>} ads
+     * @returns {Array<RawAdTree>}
+     */
+    function getFirstStandAloneAd(ads) {
+        for (const ad of ads) {
+            const isAdPod = ad.data.attributes.sequence !== undefined;
+
+            if (!isAdPod) {
+                return [ad];
+            }
         }
 
-        const handleXmlHttpReq = function () {
-            const xmlHttpReq = this;
-            let xmlResponse = false;
+        return [];
+    }
 
-            if (xmlHttpReq.readyState === 4 && xmlHttpReq.status === 404) {
-                callBack(false);
-                return;
-            }
+    /**
+     * Resolves ad requests recursively and returns a tree of "Ad" and "Wrapper" elements
+     *
+     * @param {string} url vast resource url
+     * @param {number} maxDepth depth of recursive calls (wrapper depth)
+     * @param {Partial<RawAdTree>} baseNode used for recursive calls as base node
+     * @param {number} currentDepth used internally to track depth
+     * @param {boolean} followAdditionalWrappers used internally to track nested wrapper calls
+     * @returns {Promise<RawAdTree>}
+     */
+    async function resolveAdTreeRequests(url, maxDepth, baseNode = {}, currentDepth = 0, followAdditionalWrappers = true) {
+        const adTree = { ...baseNode, children: [] };
+        const { responseXML } = await playerInstance.sendRequestAsync(url, true, playerInstance.displayOptions.vastOptions.vastTimeout);
+        const adElements = Array.from(responseXML.getElementsByTagName('Ad'));
 
-            if (xmlHttpReq.readyState === 4 && xmlHttpReq.status === 204) {
-                callBack(false);
-                return;
-            }
+        for (const adElement of adElements) {
+            const vastAdTagUri = playerInstance.getVastAdTagUriFromWrapper(adElement);
+            const isAdPod = adElement.attributes.sequence !== undefined;
+            const adNode = { data: adElement };
 
-            if (xmlHttpReq.readyState === 4 && xmlHttpReq.status === 0) {
-                callBack(false); //Most likely that Ad Blocker exists
-                return;
-            }
+            if (vastAdTagUri && currentDepth <= maxDepth && followAdditionalWrappers) {
+                const [wrapperElement] = adElement.getElementsByTagName('Wrapper');
+                const disableAdditionalWrappers = wrapperElement.attributes.followAdditionalWrappers && ["false", "0"].includes(wrapperElement.attributes.followAdditionalWrappers.value); // See VAST Wrapper spec
+                const allowMultipleAds = wrapperElement.attributes.allowMultipleAds && ["true", "1"].includes(wrapperElement.attributes.allowMultipleAds.value); // See VAST Wrapper spec
+                const fallbackOnNoAd = wrapperElement.attributes.fallbackOnNoAd && ["true", "1"].includes(wrapperElement.attributes.fallbackOnNoAd.value);
 
-            if (!((xmlHttpReq.readyState === 4) && (xmlHttpReq.status === 200))) {
-                return;
-            }
+                try {
+                    const wrapperResponse = await resolveAdTreeRequests(vastAdTagUri, maxDepth, { tagType: 'wrapper', ...adNode, fallbackOnNoAd }, currentDepth+1, !disableAdditionalWrappers);
+                    wrapperResponse.fallbackOnNoAd = fallbackOnNoAd;
 
-            if ((xmlHttpReq.readyState === 4) && (xmlHttpReq.status !== 200)) {
-                callBack(false);
-                return;
-            }
+                    if (!allowMultipleAds || isAdPod) {
+                        wrapperResponse.children = getFirstStandAloneAd(wrapperResponse.children);
+                    }
 
-            try {
-                xmlResponse = xmlHttpReq.responseXML;
-            } catch (e) {
-                callBack(false);
-                return;
-            }
-
-            if (!xmlResponse) {
-                callBack(false);
-                return;
-            }
-
-            playerInstance.inLineFound = playerInstance.hasInLine(xmlResponse);
-
-            if (!playerInstance.inLineFound && playerInstance.hasVastAdTagUri(xmlResponse)) {
-
-                const vastAdTagUri = playerInstance.getVastAdTagUriFromWrapper(xmlResponse);
-                if (vastAdTagUri) {
-                    playerInstance.resolveVastTag(vastAdTagUri, numberOfRedirects, tmpOptions, callBack);
-                } else {
-                    callBack(false);
-                    return;
+                    adTree.children.push(wrapperResponse);
+                } catch (e) {
+                    adTree.children.push({ tagType: `wrapper`, fallbackOnNoAd, httpError: true })
+                    playerInstance.debugMessage(`Error when loading Wrapper, will trigger fallback if available`, e);
                 }
+            } else if (!vastAdTagUri) {
+                adTree.children.push({ tagType: 'inLine', ...adNode });
             }
-
-            if (numberOfRedirects > playerInstance.displayOptions.vastOptions.maxAllowedVastTagRedirects && !playerInstance.inLineFound) {
-                callBack(false);
-                return;
-            }
-
-            playerInstance.processVastXml(xmlResponse, tmpOptions, callBack);
-        };
-
-        if (numberOfRedirects <= playerInstance.displayOptions.vastOptions.maxAllowedVastTagRedirects) {
-
-            playerInstance.sendRequest(
-                vastTag,
-                true,
-                playerInstance.displayOptions.vastOptions.vastTimeout,
-                handleXmlHttpReq
-            );
         }
 
-        numberOfRedirects++;
+        return adTree;
+    }
+
+    /**
+     * Transforms an Ad Tree to a 1-dimensional array of Ads with wrapper data attached to each ad
+     *
+     * @param {RawAdTree} root
+     * @param {Array<RawAd>} ads
+     * @param {Array<XMLDocument>} wrappers
+     * @returns {Array<RawAd>}
+     */
+    function flattenAdTree(root, ads = [], wrappers = []) {
+        const currentWrappers = [...wrappers, root.data];
+
+        if (Array.isArray(root.children) && root.children.length) {
+            root.children.forEach(child => flattenAdTree(child, ads, currentWrappers));
+        }
+
+        if (root.tagType === 'inLine') {
+            ads.push({ ...root, wrappers: currentWrappers.filter(Boolean) });
+        }
+
+        return ads;
+    }
+
+    /**
+     * Register Ad element properties to an Ad based on its data and its wrapper data if available
+     *
+     * @param {RawAd} rawAd
+     * @param {{ tracking: Array, stopTracking: Array, impression: Array, clicktracking: Array }} options
+     * @returns {Ad}
+     */
+    function registerAdProperties(rawAd, options) {
+        const ad = { ...rawAd, ...JSON.parse(JSON.stringify(options)) };
+
+        ad.adType = (ad.data.getElementsByTagName('Linear').length && 'linear') ||
+            (ad.data.getElementsByTagName('NonLinearAds').length && 'nonLinear') || 'unknown';
+
+        [...(ad.wrappers || []), ad.data].filter(Boolean).forEach(dataSource => {
+            // Register impressions
+            const impression = dataSource.getElementsByTagName('Impression');
+            if (impression !== null) {
+                playerInstance.registerImpressionEvents(impression, ad);
+            }
+
+            // Get the error tag, if any
+            const errorTags = dataSource.getElementsByTagName('Error');
+            if (errorTags !== null) {
+                playerInstance.registerErrorEvents(errorTags, ad);
+            }
+
+            // Sets CTA from vast
+            const [titleCta] = dataSource.getElementsByTagName('TitleCTA');
+            if (titleCta) {
+                playerInstance.setCTAFromVast(titleCta, ad);
+            }
+
+            // Register tracking events
+            playerInstance.registerTrackingEvents(dataSource, ad);
+            const clickTracks = ad.adType === 'linear' ?
+                playerInstance.getClickTrackingEvents(dataSource) :
+                playerInstance.getNonLinearClickTrackingEvents(dataSource);
+            playerInstance.registerClickTracking(clickTracks, ad);
+        });
+
+        ad.sequence = ad.data.attributes.sequence ? Number(ad.data.attributes.sequence.value) : null;
+        ad.played = false;
+
+        return ad;
+    }
+
+    /**
+     * Handles selection of ad pod or standalone ad to be played
+     *
+     * @param {Array<Ad>} ads
+     * @param {number} maxDuration
+     * @param {number} maxQuantity
+     * @param {boolean} forceStandAloneAd
+     */
+    function getPlayableAds(ads, maxDuration, maxQuantity, forceStandAloneAd) {
+        const { adPod } = ads
+            .filter(ad => Boolean(ad.sequence))
+            .sort((adX, adY) => adX.sequence - adY.sequence)
+            .reduce((playableAds, ad) => {
+                if (playableAds.adPod.length < maxQuantity && (playableAds.totalDuration + ad.duration) <= maxDuration) {
+                    playableAds.adPod.push(ad);
+                }
+
+                return playableAds;
+            }, { adPod: [], totalDuration: 0 });
+        const adBuffet = ads.filter(ad => !Boolean(ad.sequence) && ad.duration < maxDuration);
+
+        const isValidAdPodFormats = adPod.map(ad => ad.adType).slice(0, -1).every(adType => adType === 'linear');
+
+        if (adPod.length > 0 && !forceStandAloneAd && isValidAdPodFormats) {
+            playerInstance.debugMessage('Playing valid adPod', adPod);
+            return adPod;
+        } else {
+            playerInstance.debugMessage('Trying to play single ad, adBuffet:', adBuffet);
+            return adBuffet.length > 0 ? [adBuffet[0]] : [];
+        }
+    }
+
+    /**
+     * @param vastTag
+     * @param numberOfRedirects
+     * @param tmpOptions
+     * @param callback
+     * @param rollListId
+     */
+    playerInstance.resolveVastTag = (vastTag, numberOfRedirects, tmpOptions, callback, rollListId) => {
+        if (!vastTag || vastTag === '') {
+            return callback(false);
+        }
+
+        resolveAdTreeRequests(vastTag, playerInstance.displayOptions.vastOptions.maxAllowedVastTagRedirects)
+            .then(result => {
+                try {
+                    /** @see VAST 4.0 Wrapper.fallbackOnNoAd */
+                    const triggerFallbackOnNoAd = result.children.some(ad =>
+                        ad.tagType === 'wrapper' && ad.fallbackOnNoAd && (!/"tagType":"ad"/.test(JSON.stringify(ad)) || ad.httpError)
+                    );
+
+                    if (triggerFallbackOnNoAd) {
+                        playerInstance.debugMessage('Error on VAST Wrapper, triggering fallbackOnNoAd. Ad tree:', result);
+                    }
+
+                    result = flattenAdTree(result).map(ad => processAdCreatives(registerAdProperties(ad, tmpOptions)));
+
+                    const playableAds = getPlayableAds(
+                        result,
+                        playerInstance.rollsById[rollListId].maxTotalDuration || Number.MAX_SAFE_INTEGER,
+                        playerInstance.rollsById[rollListId].maxTotalQuantity || Number.MAX_SAFE_INTEGER,
+                        triggerFallbackOnNoAd,
+                    );
+
+                    (playableAds && playableAds.length) ? callback(true, playableAds) : callback(false);
+                } catch (error) {
+                    callback(false);
+                }
+            })
+            .catch(() => {
+                return callback(false);
+            });
     };
 
     playerInstance.setVastList = () => {
-        const ads = {};
-        const adGroupedByRolls = {preRoll: [], postRoll: [], midRoll: [], onPauseRoll: []};
+        const rolls = {};
+        const rollsGroupedByType = { preRoll: [], postRoll: [], midRoll: [], onPauseRoll: [] };
         const def = {
             id: null,
             roll: null,
-            played: false,
             vastLoaded: false,
             error: false,
             adText: null,
-            adTextPosition: null
+            adTextPosition: null,
         };
         let idPart = 0;
 
@@ -778,20 +957,21 @@ export default function (playerInstance, options) {
 
             for (let key in playerInstance.displayOptions.vastOptions.adList) {
 
-                let adItem = playerInstance.displayOptions.vastOptions.adList[key];
+                let rollItem = playerInstance.displayOptions.vastOptions.adList[key];
 
-                if (validateRequiredParams(adItem)) {
+                if (validateRequiredParams(rollItem)) {
                     playerInstance.announceLocalError(102, 'Wrong adList parameters.');
                     continue;
                 }
                 const id = 'ID' + idPart;
 
-                ads[id] = Object.assign({}, def);
-                ads[id] = Object.assign(ads[id], playerInstance.displayOptions.vastOptions.adList[key]);
-                if (adItem.roll == 'midRoll') {
-                    ads[id].error = validateVastList('midRoll', adItem);
+                rolls[id] = Object.assign({}, def);
+                rolls[id] = Object.assign(rolls[id], playerInstance.displayOptions.vastOptions.adList[key]);
+                if (rollItem.roll === 'midRoll') {
+                    rolls[id].error = validateVastList('midRoll', rollItem);
                 }
-                ads[id].id = id;
+                rolls[id].id = id;
+                rolls[id].ads = [];
                 idPart++;
 
             }
@@ -799,37 +979,45 @@ export default function (playerInstance, options) {
 
         // group the ads by roll
         // pushing object references and forming json
-        Object.keys(ads).map(function (e) {
-            if (ads[e].roll.toLowerCase() === 'preRoll'.toLowerCase()) {
-                adGroupedByRolls.preRoll.push(ads[e]);
-            } else if (ads[e].roll.toLowerCase() === 'midRoll'.toLowerCase()) {
-                adGroupedByRolls.midRoll.push(ads[e]);
-            } else if (ads[e].roll.toLowerCase() === 'postRoll'.toLowerCase()) {
-                adGroupedByRolls.postRoll.push(ads[e]);
-            } else if (ads[e].roll.toLowerCase() === 'onPauseRoll'.toLowerCase()) {
-                adGroupedByRolls.onPauseRoll.push(ads[e]);
+        Object.keys(rolls).map(function (e) {
+            switch (rolls[e].roll.toLowerCase()) {
+                case 'preRoll'.toLowerCase():
+                    rollsGroupedByType.preRoll.push(rolls[e]);
+                    break;
+                case 'midRoll'.toLowerCase():
+                    rollsGroupedByType.midRoll.push(rolls[e]);
+                    break;
+                case 'postRoll'.toLowerCase():
+                    rollsGroupedByType.postRoll.push(rolls[e]);
+                    break;
+                case 'onPauseRoll'.toLowerCase():
+                    rollsGroupedByType.onPauseRoll.push(rolls[e]);
+                    break;
+                default:
+                    console.error(`${rolls[e].roll.toLowerCase()} is not a recognized roll`);
+                    break;
             }
         });
 
-        playerInstance.adGroupedByRolls = adGroupedByRolls;
-        playerInstance.adList = ads;
+        playerInstance.adGroupedByRolls = rollsGroupedByType;
+        playerInstance.rollsById = rolls;
     };
 
     playerInstance.onVastAdEnded = (event) => {
         if (event) {
             event.stopImmediatePropagation();
         }
-        //"this" is the HTML5 video tag, because it disptches the "ended" event
+        playerInstance.vastOptions.adFinished = true;
+        //"this" is the HTML5 video tag, because it dispatches the "ended" event
         playerInstance.deleteVastAdElements();
         playerInstance.checkForNextAd();
     };
 
     playerInstance.vastLogoBehaviour = (vastPlaying) => {
         if (!playerInstance.displayOptions.layoutControls.logo.showOverAds) {
-            const logoHolder = document.getElementById(playerInstance.videoPlayerId + '_logo');
-            const logoImage = document.getElementById(playerInstance.videoPlayerId + '_logo_image');
+            const logoHolder = playerInstance.domRef.wrapper.querySelector('.logo_holder');
 
-            if (!logoHolder || !logoImage) {
+            if (!logoHolder) {
                 return;
             }
 

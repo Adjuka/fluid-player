@@ -1,5 +1,4 @@
 // VPAID support module
-'use strict';
 export default function (playerInstance, options) {
     const callbacks = {
         AdStarted: () => playerInstance.onStartVpaidAd,
@@ -216,8 +215,8 @@ export default function (playerInstance, options) {
 
     // Callback for AdLinearChange
     playerInstance.onVpaidAdLinearChange = () => {
-        const vpaidNonLinearSlot = document.getElementsByClassName("fluid_vpaidNonLinear_ad")[0];
-        const closeBtn = document.getElementById('close_button_' + playerInstance.videoPlayerId);
+        const vpaidNonLinearSlot = playerInstance.domRef.wrapper.getElementsByClassName("fluid_vpaidNonLinear_ad")[0];
+        const closeBtn = playerInstance.domRef.wrapper.querySelector('.close_button');
         const adListId = vpaidNonLinearSlot.getAttribute('adlistid');
         playerInstance.debugMessage("Ad linear has changed: " + playerInstance.vpaidAdUnit.getAdLinear());
 
@@ -225,7 +224,7 @@ export default function (playerInstance, options) {
             return;
         }
 
-        playerInstance.backupMainVideoContentTime(adListId);
+        playerInstance.backupMainVideoContentTime(adListId.split('_')[0]);
         playerInstance.isCurrentlyPlayingAd = true;
 
         if (closeBtn) {
@@ -233,7 +232,6 @@ export default function (playerInstance, options) {
         }
 
         vpaidNonLinearSlot.className = 'fluid_vpaid_slot';
-        vpaidNonLinearSlot.id = playerInstance.videoPlayerId + "_fluid_vpaid_slot";
         playerInstance.domRef.player.loop = false;
         playerInstance.domRef.player.removeAttribute('controls');
 
@@ -280,7 +278,7 @@ export default function (playerInstance, options) {
     };
 
     // Hard Pass through for stopAd() excluding deleteOtherVpaidAdsApart
-    playerInstance.hardStopVpaidAd = (deleteOtherVpaidAdsApart) => {
+    playerInstance.hardStopVpaidAd = (ad) => {
         // this is hard stop of vpaid ads
         // we delete all the vpaid assets so the new one can be loaded
         // delete all assets apart from the ad from deleteOtherVpaidAdsApart
@@ -289,24 +287,24 @@ export default function (playerInstance, options) {
             playerInstance.vpaidAdUnit = null;
         }
 
-        const vpaidIframes = document.getElementsByClassName("fluid_vpaid_iframe");
-        const vpaidSlots = document.getElementsByClassName("fluid_vpaid_slot");
-        const vpaidNonLinearSlots = document.getElementsByClassName("fluid_vpaidNonLinear_ad");
+        const vpaidIframes = playerInstance.domRef.wrapper.getElementsByClassName("fluid_vpaid_iframe");
+        const vpaidSlots = playerInstance.domRef.wrapper.getElementsByClassName("fluid_vpaid_slot");
+        const vpaidNonLinearSlots = playerInstance.domRef.wrapper.getElementsByClassName("fluid_vpaidNonLinear_ad");
 
         for (let i = 0; i < vpaidIframes.length; i++) {
-            if (vpaidIframes[i].getAttribute('adListId') !== deleteOtherVpaidAdsApart) {
+            if (vpaidIframes[i].getAttribute('adListId') !== ad.id) {
                 vpaidIframes[i].remove();
             }
         }
 
         for (let j = 0; j < vpaidSlots.length; j++) {
-            if (vpaidSlots[j].getAttribute('adListId') !== deleteOtherVpaidAdsApart) {
+            if (vpaidSlots[j].getAttribute('adListId') !== ad.id) {
                 vpaidSlots[j].remove();
             }
         }
 
         for (let k = 0; k < vpaidNonLinearSlots.length; k++) {
-            if (vpaidNonLinearSlots[k].getAttribute('adListId') !== deleteOtherVpaidAdsApart) {
+            if (vpaidNonLinearSlots[k].getAttribute('adListId') !== ad.id) {
                 vpaidNonLinearSlots[k].remove();
             }
         }
@@ -371,7 +369,7 @@ export default function (playerInstance, options) {
         }
     };
 
-    //Passthrough for resizeAd
+    // Passthrough for resizeAd
     playerInstance.resizeVpaidAd = (width, height, viewMode) => {
         if (!playerInstance.vpaidAdUnit) {
             return;
@@ -397,7 +395,7 @@ export default function (playerInstance, options) {
         playerInstance.vpaidAdUnit.resumeAd();
     };
 
-    //Passthrough for expandAd()
+    // Passthrough for expandAd()
     playerInstance.expandVpaidAd = () => {
         if (!playerInstance.vpaidAdUnit) {
             return;
@@ -405,7 +403,7 @@ export default function (playerInstance, options) {
         playerInstance.vpaidAdUnit.expandAd();
     };
 
-    //Passthrough for collapseAd()
+    // Passthrough for collapseAd()
     playerInstance.collapseVpaidAd = () => {
         if (!playerInstance.vpaidAdUnit) {
             return;
@@ -430,7 +428,7 @@ export default function (playerInstance, options) {
     };
 
     playerInstance.vpaidCallbackListenersAttach = () => {
-        //The key of the object is the event name and the value is a reference to the callback function that is registered with the creative
+        // The key of the object is the event name and the value is a reference to the callback function that is registered with the creative
         // Looping through the object and registering each of the callbacks with the creative
         for (let eventName in callbacks) {
             playerInstance.vpaidAdUnit.subscribe(callbacks[eventName](), eventName, playerInstance);
@@ -446,60 +444,66 @@ export default function (playerInstance, options) {
         }
     };
 
-    playerInstance.loadVpaid = (adListId, vpaidJsUrl) => {
+    playerInstance.loadVpaid = (ad, vpaidJsUrl) => {
         const vpaidIframe = document.createElement('iframe');
-        vpaidIframe.id = playerInstance.videoPlayerId + "_" + adListId + "_fluid_vpaid_iframe";
+        vpaidIframe.id = "fp_" + ad.id + "_fluid_vpaid_iframe";
         vpaidIframe.className = 'fluid_vpaid_iframe';
-        vpaidIframe.setAttribute('adListId', adListId);
+        vpaidIframe.setAttribute('adListId', ad.id);
         vpaidIframe.setAttribute('frameborder', '0');
 
         playerInstance.domRef.player.parentNode.insertBefore(vpaidIframe, playerInstance.domRef.player.nextSibling);
 
-        vpaidIframe.contentWindow.document.write('<script src="' + vpaidJsUrl + '"></scr' + 'ipt>');
+        const vpaidJsScriptElement = document.createElement('script');
+        vpaidJsScriptElement.src = vpaidJsUrl;
+
+        vpaidIframe.contentWindow.document.head.append(vpaidJsScriptElement);
 
         // set interval with timeout
         playerInstance.tempVpaidCounter = 0;
         playerInstance.getVPAIDAdInterval = setInterval(function () {
+            if (vpaidIframe && vpaidIframe.contentWindow) {
+                const fn = vpaidIframe.contentWindow['getVPAIDAd'];
 
-            const fn = vpaidIframe.contentWindow['getVPAIDAd'];
+                // check if JS is loaded fully in iframe
+                if (fn && typeof fn == 'function') {
 
-            // check if JS is loaded fully in iframe
-            if (fn && typeof fn == 'function') {
+                    if (playerInstance.vpaidAdUnit) {
+                        playerInstance.hardStopVpaidAd(ad);
+                    }
 
-                if (playerInstance.vpaidAdUnit) {
-                    playerInstance.hardStopVpaidAd(adListId);
-                }
+                    playerInstance.vpaidAdUnit = fn();
+                    clearInterval(playerInstance.getVPAIDAdInterval);
+                    if (playerInstance.checkVPAIDInterface(playerInstance.vpaidAdUnit)) {
 
-                playerInstance.vpaidAdUnit = fn();
-                clearInterval(playerInstance.getVPAIDAdInterval);
-                if (playerInstance.checkVPAIDInterface(playerInstance.vpaidAdUnit)) {
+                        if (playerInstance.getVpaidAdLinear()) {
+                            playerInstance.isCurrentlyPlayingAd = true;
+                            playerInstance.switchPlayerToVpaidMode(ad);
+                        } else {
+                            playerInstance.debugMessage('non linear vpaid ad is loaded');
+                            playerInstance.loadVpaidNonlinearAssets(ad);
+                        }
 
-                    if (playerInstance.getVpaidAdLinear()) {
-                        playerInstance.isCurrentlyPlayingAd = true;
-                        playerInstance.switchPlayerToVpaidMode(adListId);
+                    }
+
+                } else {
+
+                    // video player will wait for 2seconds if vpaid is not loaded, then it will declare vast error and move ahead
+                    playerInstance.tempVpaidCounter++;
+                    if (playerInstance.tempVpaidCounter >= 20) {
+                        clearInterval(playerInstance.getVPAIDAdInterval);
+                        playerInstance.rollsById[ad.rollListId].error = true;
+                        playerInstance.playMainVideoWhenVpaidFails(403);
+                        return false;
                     } else {
-                        playerInstance.debugMessage('non linear vpaid ad is loaded');
-                        playerInstance.loadVpaidNonlinearAssets(adListId);
+                        playerInstance.debugMessage(playerInstance.tempVpaidCounter);
                     }
 
                 }
-
-            } else {
-
-                // video player will wait for 2seconds if vpaid is not loaded, then it will declare vast error and move ahead
-                playerInstance.tempVpaidCounter++;
-                if (playerInstance.tempVpaidCounter >= 20) {
-                    clearInterval(playerInstance.getVPAIDAdInterval);
-                    playerInstance.adList[adListId].error = true;
-                    playerInstance.playMainVideoWhenVpaidFails(403);
-                    return false;
-                } else {
-                    playerInstance.debugMessage(playerInstance.tempVpaidCounter);
-                }
-
             }
 
         }, 100);
+
+        playerInstance.destructors.push(() => clearInterval(playerInstance.getVPAIDAdInterval));
 
     };
 
@@ -508,7 +512,11 @@ export default function (playerInstance, options) {
             event.stopImmediatePropagation();
         }
 
-        const vpaidSlot = document.getElementById(playerInstance.videoPlayerId + "_fluid_vpaid_slot");
+        if (!playerInstance.vpaidAdUnit) {
+            return;
+        }
+
+        const vpaidSlot = playerInstance.domRef.wrapper.querySelector('.fluid_vpaid_slot');
 
         playerInstance.vpaidCallbackListenersDetach();
 
@@ -523,7 +531,7 @@ export default function (playerInstance, options) {
     };
 
     playerInstance.playMainVideoWhenVpaidFails = (errorCode) => {
-        const vpaidSlot = document.getElementById(playerInstance.videoPlayerId + "_fluid_vpaid_slot");
+        const vpaidSlot = playerInstance.domRef.wrapper.querySelector('.fluid_vpaid_slot');
 
         if (vpaidSlot) {
             vpaidSlot.remove();
@@ -531,9 +539,5 @@ export default function (playerInstance, options) {
 
         clearInterval(playerInstance.getVPAIDAdInterval);
         playerInstance.playMainVideoWhenVastFails(errorCode);
-    };
-
-    // TODO: ???
-    playerInstance.switchPlayerToVpaidMode = () => {
     };
 }

@@ -1,4 +1,3 @@
-'use strict';
 export default function (playerInstance, options) {
     playerInstance.subtitleFetchParse = (subtitleItem) => {
         playerInstance.sendRequest(
@@ -66,7 +65,7 @@ export default function (playerInstance, options) {
 
         if (!playerInstance.displayOptions.layoutControls.subtitlesEnabled) {
             // No other video subtitles
-            document.getElementById(playerInstance.videoPlayerId + '_fluid_control_subtitles').style.display = 'none';
+            playerInstance.domRef.wrapper.querySelector('.fluid_control_subtitles').style.display = 'none';
             return;
         }
 
@@ -77,34 +76,44 @@ export default function (playerInstance, options) {
 
         [].forEach.call(tracksList, function (track) {
             if (track.kind === 'metadata' && track.src) {
-                tracks.push({'label': track.label, 'url': track.src, 'lang': track.srclang});
+                tracks.push({'label': track.label, 'url': track.src, 'lang': track.srclang, 'default': track.default});
             }
         });
 
         playerInstance.subtitlesTracks = tracks;
-        const subtitlesChangeButton = document.getElementById(playerInstance.videoPlayerId + '_fluid_control_subtitles');
+        const subtitlesChangeButton = playerInstance.domRef.wrapper.querySelector('.fluid_control_subtitles');
         subtitlesChangeButton.style.display = 'inline-block';
         let appendSubtitleChange = false;
 
         const subtitlesChangeList = document.createElement('div');
-        subtitlesChangeList.id = playerInstance.videoPlayerId + '_fluid_control_subtitles_list';
         subtitlesChangeList.className = 'fluid_subtitles_list';
         subtitlesChangeList.style.display = 'none';
 
-        let firstSubtitle = true;
+        let hasSelectedSubtitle = false;
+        const hasDefault = !!playerInstance.subtitlesTracks.find(track => track.default);
         playerInstance.subtitlesTracks.forEach(function (subtitle) {
+            let subtitleSelected = ''
 
-            const subtitleSelected = (firstSubtitle) ? "subtitle_selected" : "";
-            firstSubtitle = false;
+            const subtitlesOnByDefault = playerInstance.displayOptions.layoutControls.subtitlesOnByDefault;
+
+            if (!hasSelectedSubtitle && (subtitlesOnByDefault && subtitle.default ||
+                (!hasDefault && subtitle.label !== subtitlesOff) ||
+                playerInstance.subtitlesTracks.length === 1) ||
+                !subtitlesOnByDefault && subtitle.label === subtitlesOff
+            ) {
+                subtitleSelected = 'subtitle_selected';
+                playerInstance.subtitleFetchParse(subtitle);
+                hasSelectedSubtitle = true;
+            }
+
             const subtitlesChangeDiv = document.createElement('div');
-            subtitlesChangeDiv.id = 'subtitle_' + playerInstance.videoPlayerId + '_' + subtitle.label;
             subtitlesChangeDiv.className = 'fluid_subtitle_list_item';
             subtitlesChangeDiv.innerHTML = '<span class="subtitle_button_icon ' + subtitleSelected + '"></span>' + subtitle.label;
 
             subtitlesChangeDiv.addEventListener('click', function (event) {
                 event.stopPropagation();
                 const subtitleChangedTo = this;
-                const subtitleIcons = document.getElementsByClassName('subtitle_button_icon');
+                const subtitleIcons = playerInstance.domRef.wrapper.getElementsByClassName('subtitle_button_icon');
 
                 for (let i = 0; i < subtitleIcons.length; i++) {
                     subtitleIcons[i].className = subtitleIcons[i].className.replace("subtitle_selected", "");
@@ -132,22 +141,26 @@ export default function (playerInstance, options) {
 
         if (appendSubtitleChange) {
             subtitlesChangeButton.appendChild(subtitlesChangeList);
-            subtitlesChangeButton.addEventListener('click', function () {
-                playerInstance.openCloseSubtitlesSwitch();
-            });
+            subtitlesChangeButton.removeEventListener('click', handleSubtitlesChange);
+            subtitlesChangeButton.addEventListener('click', handleSubtitlesChange);
         } else {
             // Didn't give any subtitle options
-            document.getElementById(playerInstance.videoPlayerId + '_fluid_control_subtitles').style.display = 'none';
+            playerInstance.domRef.wrapper.querySelector('.fluid_control_subtitles').style.display = 'none';
         }
 
-        //attach subtitles to show based on time
-        //this function is for rendering of subtitles when content is playing
-        const videoPlayerSubtitlesUpdate = function () {
-            playerInstance.renderSubtitles();
-        };
-
+        playerInstance.domRef.player.removeEventListener('timeupdate', videoPlayerSubtitlesUpdate);
         playerInstance.domRef.player.addEventListener('timeupdate', videoPlayerSubtitlesUpdate);
     };
+
+    function handleSubtitlesChange() {
+        playerInstance.openCloseSubtitlesSwitch();
+    }
+
+    //attach subtitles to show based on time
+    //this function is for rendering of subtitles when content is playing
+    function videoPlayerSubtitlesUpdate() {
+        playerInstance.renderSubtitles();
+    }
 
     playerInstance.renderSubtitles = () => {
         const videoPlayer = playerInstance.domRef.player;
@@ -155,7 +168,7 @@ export default function (playerInstance, options) {
         //if content is playing then no subtitles
         let currentTime = Math.floor(videoPlayer.currentTime);
         let subtitlesAvailable = false;
-        let subtitlesContainer = document.getElementById(playerInstance.videoPlayerId + '_fluid_subtitles_container');
+        let subtitlesContainer = playerInstance.domRef.wrapper.querySelector('.fluid_subtitles_container');
 
         if (playerInstance.isCurrentlyPlayingAd) {
             subtitlesContainer.innerHTML = '';
@@ -176,7 +189,7 @@ export default function (playerInstance, options) {
     };
 
     playerInstance.openCloseSubtitlesSwitch = () => {
-        const subtitleChangeList = document.getElementById(playerInstance.videoPlayerId + '_fluid_control_subtitles_list');
+        const subtitleChangeList = playerInstance.domRef.wrapper.querySelector('.fluid_subtitles_list');
 
         if (playerInstance.isCurrentlyPlayingAd) {
             subtitleChangeList.style.display = 'none';
@@ -197,7 +210,6 @@ export default function (playerInstance, options) {
 
     playerInstance.createSubtitles = () => {
         const divSubtitlesContainer = document.createElement('div');
-        divSubtitlesContainer.id = playerInstance.videoPlayerId + '_fluid_subtitles_container';
         divSubtitlesContainer.className = 'fluid_subtitles_container';
         playerInstance.domRef.player.parentNode.insertBefore(divSubtitlesContainer, playerInstance.domRef.player.nextSibling);
 

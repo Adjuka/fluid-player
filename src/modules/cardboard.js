@@ -1,10 +1,8 @@
-'use strict';
 export default function (playerInstance, options) {
     playerInstance.createCardboardJoystickButton = (identity) => {
-        const vrJoystickPanel = document.getElementById(playerInstance.videoPlayerId + '_fluid_vr_joystick_panel');
+        const vrJoystickPanel = playerInstance.domRef.wrapper.querySelector('.fluid_vr_joystick_panel');
         const joystickButton = document.createElement('div');
 
-        joystickButton.id = playerInstance.videoPlayerId + '_fluid_vr_joystick_' + identity;
         joystickButton.className = 'fluid_vr_button fluid_vr_joystick_' + identity;
         vrJoystickPanel.appendChild(joystickButton);
 
@@ -38,11 +36,10 @@ export default function (playerInstance, options) {
     };
 
     playerInstance.createCardboardJoystick = () => {
-        const vrContainer = document.getElementById(playerInstance.videoPlayerId + '_fluid_vr_container');
+        const vrContainer = playerInstance.domRef.wrapper.querySelector('.fluid_vr_container');
 
         // Create a JoyStick and append to VR container
         const vrJoystickPanel = document.createElement('div');
-        vrJoystickPanel.id = playerInstance.videoPlayerId + '_fluid_vr_joystick_panel';
         vrJoystickPanel.className = 'fluid_vr_joystick_panel';
         vrContainer.appendChild(vrJoystickPanel);
 
@@ -95,18 +92,20 @@ export default function (playerInstance, options) {
     };
 
     playerInstance.cardBoardResize = () => {
-        playerInstance.domRef.player.addEventListener('theatreModeOn', function () {
-            playerInstance.vrViewer.onWindowResize();
-        });
+        playerInstance.domRef.player.removeEventListener('theatreModeOn', handleWindowResize);
+        playerInstance.domRef.player.addEventListener('theatreModeOn', handleWindowResize);
 
-        playerInstance.domRef.player.addEventListener('theatreModeOff', function () {
-            playerInstance.vrViewer.onWindowResize();
-        });
+        playerInstance.domRef.player.removeEventListener('theatreModeOff', handleWindowResize);
+        playerInstance.domRef.player.addEventListener('theatreModeOff', handleWindowResize);
     };
 
+    function handleWindowResize() {
+        playerInstance.vrViewer.onWindowResize();
+    }
+
     playerInstance.cardBoardSwitchToNormal = () => {
-        const vrJoystickPanel = document.getElementById(playerInstance.videoPlayerId + '_fluid_vr_joystick_panel');
-        const controlBar = document.getElementById(playerInstance.videoPlayerId + '_fluid_controls_container');
+        const vrJoystickPanel = playerInstance.domRef.wrapper.querySelector('.fluid_vr_joystick_panel');
+        const controlBar = playerInstance.domRef.wrapper.querySelector('.fluid_controls_container')
         const videoPlayerTag = playerInstance.domRef.player;
 
         playerInstance.vrViewer.enableEffect(PANOLENS.MODES.NORMAL);
@@ -123,14 +122,14 @@ export default function (playerInstance, options) {
         controlBar.classList.remove("fluid_vr_controls_container");
 
         // show volume control bar
-        const volumeContainer = document.getElementById(playerInstance.videoPlayerId + '_fluid_control_volume_container');
+        const volumeContainer = playerInstance.domRef.wrapper.getElementById('.fluid_control_volume_container');
         volumeContainer.style.display = "block";
 
         // show all ads overlays if any
-        const adCountDownTimerText = document.getElementById('ad_countdown' + playerInstance.videoPlayerId);
-        const ctaButton = document.getElementById(playerInstance.videoPlayerId + '_fluid_cta');
-        const addAdPlayingTextOverlay = document.getElementById(playerInstance.videoPlayerId + '_fluid_ad_playing');
-        const skipBtn = document.getElementById('skip_button_' + playerInstance.videoPlayerId);
+        const adCountDownTimerText = playerInstance.domRef.wrapper.querySelector('.ad_countdown');
+        const ctaButton = playerInstance.domRef.wrapper.querySelector('.fluid_ad_cta');
+        const addAdPlayingTextOverlay = playerInstance.domRef.wrapper.querySelector('.fluid_ad_playing');
+        const skipBtn = playerInstance.domRef.wrapper.querySelector('.skip_button');
 
         if (adCountDownTimerText) {
             adCountDownTimerText.style.display = 'block';
@@ -150,9 +149,9 @@ export default function (playerInstance, options) {
     };
 
     playerInstance.cardBoardHideDefaultControls = () => {
-        const vrJoystickPanel = document.getElementById(playerInstance.videoPlayerId + '_fluid_vr_joystick_panel');
-        const initialPlay = document.getElementById(playerInstance.videoPlayerId + '_fluid_initial_play');
-        const volumeContainer = document.getElementById(playerInstance.videoPlayerId + '_fluid_control_volume_container');
+        const vrJoystickPanel = playerInstance.domRef.wrapper.querySelector('.fluid_vr_joystick_panel');
+        const initialPlay = playerInstance.domRef.wrapper.querySelector('.fluid_initial_play');
+        const volumeContainer = playerInstance.domRef.wrapper.querySelector('.fluid_control_volume_container');
 
         // hide the joystick in VR mode
         if (playerInstance.displayOptions.layoutControls.showCardBoardJoystick && vrJoystickPanel) {
@@ -161,8 +160,8 @@ export default function (playerInstance, options) {
 
         // hide big play icon
         if (initialPlay) {
-            document.getElementById(playerInstance.videoPlayerId + '_fluid_initial_play').style.display = "none";
-            document.getElementById(playerInstance.videoPlayerId + '_fluid_initial_play_button').style.opacity = "1";
+            playerInstance.domRef.wrapper.querySelector('.fluid_initial_play').style.display = "none";
+            playerInstance.domRef.wrapper.querySelector('.fluid_initial_play_button_container').style.opacity = "1";
         }
 
         // hide volume control bar
@@ -171,7 +170,7 @@ export default function (playerInstance, options) {
     };
 
     playerInstance.cardBoardCreateVRControls = () => {
-        const controlBar = document.getElementById(playerInstance.videoPlayerId + '_fluid_controls_container');
+        const controlBar = playerInstance.domRef.wrapper.querySelector('.fluid_controls_container')
 
         // create and append dual control bar
         const newControlBar = controlBar.cloneNode(true);
@@ -186,7 +185,7 @@ export default function (playerInstance, options) {
     };
 
     playerInstance.cardBoardSwitchToVR = () => {
-        const controlBar = document.getElementById(playerInstance.videoPlayerId + '_fluid_controls_container');
+        const controlBar = playerInstance.domRef.wrapper.querySelector('.fluid_controls_container')
 
         playerInstance.vrViewer.enableEffect(PANOLENS.MODES.CARDBOARD);
 
@@ -201,10 +200,10 @@ export default function (playerInstance, options) {
         playerInstance.cardBoardCreateVRControls();
 
         // hide all ads overlays
-        const adCountDownTimerText = document.getElementById('ad_countdown' + playerInstance.videoPlayerId);
-        const ctaButton = document.getElementById(playerInstance.videoPlayerId + '_fluid_cta');
-        const addAdPlayingTextOverlay = document.getElementById(playerInstance.videoPlayerId + '_fluid_ad_playing');
-        const skipBtn = document.getElementById('skip_button_' + playerInstance.videoPlayerId);
+        const adCountDownTimerText = playerInstance.domRef.wrapper.querySelector('.ad_countdown');
+        const ctaButton = playerInstance.domRef.wrapper.querySelector('.fluid_ad_cta');
+        const addAdPlayingTextOverlay = playerInstance.domRef.wrapper.querySelector('.fluid_ad_playing');
+        const skipBtn = playerInstance.domRef.wrapper.querySelector('.skip_button');
 
         if (adCountDownTimerText) {
             adCountDownTimerText.style.display = 'none';
@@ -225,8 +224,8 @@ export default function (playerInstance, options) {
     };
 
     playerInstance.cardBoardMoveTimeInfo = () => {
-        const timePlaceholder = document.getElementById(playerInstance.videoPlayerId + '_fluid_control_duration');
-        const controlBar = document.getElementById(playerInstance.videoPlayerId + '_fluid_controls_container');
+        const timePlaceholder = playerInstance.domRef.wrapper.querySelector('.fluid_control_duration');
+        const controlBar = playerInstance.domRef.wrapper.querySelector('.fluid_controls_container')
 
         timePlaceholder.classList.add("cardboard_time");
         controlBar.appendChild(timePlaceholder);
@@ -268,7 +267,6 @@ export default function (playerInstance, options) {
     playerInstance.createCardboardView = () => {
         // Create a container for 360degree
         const vrContainer = document.createElement('div');
-        vrContainer.id = playerInstance.videoPlayerId + '_fluid_vr_container';
         vrContainer.className = 'fluid_vr_container';
         playerInstance.domRef.player.parentNode.insertBefore(vrContainer, playerInstance.domRef.player.nextSibling);
 
@@ -331,10 +329,7 @@ export default function (playerInstance, options) {
             return;
         }
 
-        document
-            .getElementById(playerInstance.videoPlayerId + '_fluid_control_cardboard')
-            .style
-            .display = 'inline-block';
+        playerInstance.domRef.wrapper.querySelector('.fluid_control_cardboard').style.display = 'inline-block';
 
         if (!window.PANOLENS) {
             import(/* webpackChunkName: "panolens" */ 'panolens').then((it) => {
